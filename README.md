@@ -1,1 +1,1 @@
-# ansible-workshop
+# ansible-docker-workshop
