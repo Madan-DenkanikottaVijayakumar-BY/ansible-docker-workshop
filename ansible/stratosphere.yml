@@ -1,0 +1,138 @@
+---
+
+- hosts: "stratosphere"
+  vars:
+    stratosphere_deployment_spn_name: "deployment-spn"
+  roles:
+    ###
+    # Management plane
+    ###
+    - name: "Log in to Azure"
+      vars:
+        azure_login_client_id: "{{ liam_key_vault_spn_client_id }}"
+        azure_login_credential: "{{ cert }}"
+        azure_login_no_subscription: False
+        azure_login_tenant_id: "{{ azure_ad_tenant }}"
+      role: "azure_login"
+
+    - name: "Get Stratosphere login credentials from LIAM Key Vault"
+      vars:
+        keyvault_secret_vault_name: "{{ liam_key_vault_name }}"
+        keyvault_secret_secret_name: "{{ key_vault_stratosphere_client_secret }}"
+        keyvault_secret_ansible_parameter_name: "_stratosphere_client_secret"
+        keyvault_secret_write: False
+      role: "keyvault_secret"
+
+    - name: "Create Stratosphere project"
+      vars:
+        stratosphere_client_secret: "{{ _stratosphere_client_secret }}"
+      role: "stratosphere_project"
+
+    - name: "Create Stratosphere Azure SPN for deployment purposes"
+      vars:
+        stratosphere_client_secret: "{{ _stratosphere_client_secret }}"
+        stratosphere_spn_resource_name: "{{ stratosphere_deployment_spn_name }}"
+      role: "stratosphere_spn"
+
+    - name: "Create Stratosphere PostgreSQL cluster"
+      vars:
+        stratosphere_client_secret: "{{ _stratosphere_client_secret }}"
+        stratosphere_keyvault_spn_resource_name: "{{ stratosphere_deployment_spn_name }}"
+      role: "stratosphere_postgres_cluster"
+
+    - name: "Create Stratosphere Key Vault"
+      vars:
+        stratosphere_client_secret: "{{ _stratosphere_client_secret }}"
+        stratosphere_keyvault_spn_resource_name: "{{ stratosphere_deployment_spn_name }}"
+        stratosphere_java_web_realm_service_resource_name: "realm-service"
+        stratosphere_java_web_entitlement_service_resource_name: "entitlement-service"
+      role: "stratosphere_keyvault"
+
+    ###
+    # Data plane
+    ###
+    - name: "Log in with deployment SPN"
+      vars:
+        azure_login_client_id: "{{ _stratosphere_spn_result.json.status['application_registration']['client_id'] }}"
+        azure_login_credential: "{{ _stratosphere_spn_result.json.status['application_registration']['client_secret'] }}"
+        azure_login_no_subscription: True
+        azure_login_tenant_id: "jdadelivers.onmicrosoft.com"
+      role: "azure_login"
+
+    - name: "Create Realm Service database user passwords in Key Vault"
+      vars:
+        keyvault_secret_vault_name: "{{ _stratosphere_keyvault_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_secret_name: "{{ key_vault_postgres_user_password_secret }}"
+        keyvault_secret_ansible_parameter_name: "_realm_service_db_password"
+        keyvault_secret_write: True
+      role: "keyvault_secret_generate"
+
+    - name: "Write database host to Key Vault"
+      vars:
+        keyvault_secret_vault_name: "{{ _stratosphere_keyvault_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_secret_name: "db-host"
+        keyvault_secret_secret_value: "{{ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_write: True
+        keyvault_secret_ansible_parameter_name: "_keyvault_secret_result"
+      role: "keyvault_secret"
+
+    - name: "Get PostgreSQL administrator password"
+      vars:
+        keyvault_secret_vault_name: "{{ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_secret_name: "administrator-login-password"
+        keyvault_secret_ansible_parameter_name: "_postgres_admin_password"
+        keyvault_secret_write: False
+      role: "keyvault_secret"
+
+    - name: "Create database users for realm and entitlement services"
+      role: "postgres_users"
+      vars:
+        postgres_users_administrator_password: "{{ _postgres_admin_password }}"
+        postgres_users_database_host: "{{ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        postgres_users:
+          - name: "realm_user"
+            password: "{{ _realm_service_db_password }}"
+          - name: "entitlement_user"
+            password: "{{ _realm_service_db_password }}"
+
+    - name: "Write realm service database user to Key Vault"
+      vars:
+        keyvault_secret_vault_name: "{{ _stratosphere_keyvault_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_secret_name: "realm-db-user"
+        keyvault_secret_secret_value: "{{ 'realm_user' ~ '@' ~ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_write: True
+        keyvault_secret_ansible_parameter_name: "_keyvault_secret_result"
+      role: "keyvault_secret"
+
+    - name: "Write entitlement service database user to Key Vault"
+      vars:
+        keyvault_secret_vault_name: "{{ _stratosphere_keyvault_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_secret_name: "entitlement-db-user"
+        keyvault_secret_secret_value: "{{ 'entitlement_user' ~ '@' ~ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        keyvault_secret_write: True
+        keyvault_secret_ansible_parameter_name: "_keyvault_secret_result"
+      role: "keyvault_secret"
+
+    - name: "Create PostgreSQL databases"
+      role: "postgres_databases"
+      vars:
+        postgres_databases_administrator_password: "{{ _postgres_admin_password }}"
+        postgres_databases_database_host: "{{ _stratosphere_postgres_result.json.status['azure']['resource_name'] }}"
+        postgres_databases:
+          - name: "realm_service"
+            owner: "realm_user"
+          - name: "entitlement_service"
+            owner: "entitlement_user"
+
+  tasks:
+     - name: "Create Stratosphere Java web for Realm and Entitlement services"
+       include_role:
+         name: "stratosphere_java_web"
+       loop:
+         - name: realm-service
+           managed_identity: "{{ stratosphere_realm_service_identity }}"
+         - name: entitlement-service
+           managed_identity: "{{ stratosphere_entitlement_service_identity }}"
+       vars:
+         java_web_service_name: "{{ item.name }}"
+         java_web_identity_id: "{{ item.managed_identity }}"

@@ -1,0 +1,12 @@
+## infra/ansible
+ansible<3.0.0 # See https://www.ansible.com/blog/ansible-3.0.0-qa
+# TODO: Pinned due to a bug with Azure Storage in 2.19.1
+azure-cli<2.19
+pyOpenSSL<20  # azure-cli implicitly requires insecure cryptography versions
+# EndTODO
+psycopg2-binary # Use -binary so PostgreSQL.c headers are not required.
+## policies/resolver
+click
+jinja2
+PyYAML
+xmlschema

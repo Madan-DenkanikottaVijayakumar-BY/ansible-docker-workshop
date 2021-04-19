@@ -1,0 +1,27 @@
+
+###
+# Production
+###
+
+[production:children]
+prod_apac
+prod_eu
+prod_us
+
+[prod_apac:children]
+prod_apac_stratosphere
+
+[prod_apac_stratosphere]
+prod_apac_stratosphere_host
+
+[prod_eu:children]
+prod_eu_stratosphere
+
+[prod_eu_stratosphere]
+prod_eu_stratosphere_host
+
+[prod_us:children]
+prod_us_stratosphere
+
+[prod_us_stratosphere]
+prod_us_stratosphere_host
