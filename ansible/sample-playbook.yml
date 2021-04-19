@@ -1,0 +1,11 @@
+---
+
+- hosts: "sample"
+  vars:
+    print_string: "Hello From Ansible"
+  roles:
+  - name: "Print String"
+    vars:
+      string: "{{ print_string }}"
+    role: "print-name"
+

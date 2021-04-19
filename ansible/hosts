@@ -9,19 +9,28 @@ prod_eu
 prod_us
 
 [prod_apac:children]
-prod_apac_stratosphere
+prod_apac_sample
 
-[prod_apac_stratosphere]
-prod_apac_stratosphere_host
+[prod_apac_sample]
+prod_apac_sample_host
 
 [prod_eu:children]
-prod_eu_stratosphere
+prod_eu_sample
 
-[prod_eu_stratosphere]
-prod_eu_stratosphere_host
+[prod_eu_sample]
+prod_eu_sample_host
 
 [prod_us:children]
-prod_us_stratosphere
+prod_us_sample
 
-[prod_us_stratosphere]
-prod_us_stratosphere_host
+[prod_us_sample]
+prod_us_sample_host
+
+###
+# Service Grouping
+###
+
+[sample:children]
+prod_apac_sample
+prod_eu_sample
+prod_us_sample
