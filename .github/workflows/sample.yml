@@ -9,6 +9,7 @@ env:
 jobs:
     test-ansible:
         name: "Test Ansible Playbooks"
+        runs-on: "ubuntu-20.04"
         steps:
             -   name: 'SETUP - Checkout code'
                 uses: 'actions/checkout@v2'
