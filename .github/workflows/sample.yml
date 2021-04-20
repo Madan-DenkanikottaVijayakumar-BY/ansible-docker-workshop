@@ -25,8 +25,8 @@ env:
                     path: "~/.cache/pip" # Specific to Ubuntu
                     key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('requirements.txt') }}
                     restore-keys: |
-                    ${{ runner.os }}-${{ env.cache-name }}-
-                    ${{ runner.os }}-
+                        ${{ runner.os }}-${{ env.cache-name }}-
+                        ${{ runner.os }}-
 
             -   name: 'SETUP - Install Python packages'
                 run: |
