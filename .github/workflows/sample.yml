@@ -6,6 +6,7 @@ on: [push]
 env:
     PYTHON_VERSION: "3.x"
 
+jobs:
     test-ansible:
         name: "Test Ansible Playbooks"
         steps:
