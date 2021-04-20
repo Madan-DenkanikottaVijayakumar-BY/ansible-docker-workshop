@@ -1,0 +1,39 @@
+---
+
+    name: "Test Ansible Workflows"
+    on: [push]
+
+        env:
+            PYTHON_VERSION: "3.x"
+
+        test-ansible:
+            name: "Test Ansible Playbooks"
+            steps:
+                -   name: 'SETUP - Checkout code'
+                    uses: 'actions/checkout@v2'
+                
+                -   name: 'SETUP - Python'
+                    uses: 'actions/setup-python@v2'
+                    with:
+                        python-version: "${{ env.PYTHON_VERSION }}"
+
+                -   name: 'SETUP - Cache pip'
+                    uses: "actions/cache@v2"
+                    env:
+                        cache-name: "pip"
+                    with:
+                        path: "~/.cache/pip" # Specific to Ubuntu
+                        key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('requirements.txt') }}
+                        restore-keys: |
+                        ${{ runner.os }}-${{ env.cache-name }}-
+                        ${{ runner.os }}-
+
+                -   name: 'SETUP - Install Python packages'
+                    run: |
+                        python -m pip install --upgrade pip
+                        python -m pip install --no-deps --requirement requirements.txt
+
+                -   name: 'Execute Ansible Playbooks'
+                    run: |
+                        cd ansible
+                        ansible-playbook sample-playbook.yml --limit prod_us
